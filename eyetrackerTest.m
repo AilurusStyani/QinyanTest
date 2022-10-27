@@ -1,15 +1,18 @@
 function eyetrackerTest(eyetracker,task,distance)
 % essential environment: psychtoolbox-3
-delete SCREEN
+delete TRIALINFO SCREEN
 global SCREEN
+global TRIALINFO
 
 if nargin <1
-    eyetracker = 0; % 0 for no eyetracker mode; 1 for eyelink; 2 for QY-1
+    TRIALINFO.eyetracker = 0; % 0 for no TRIALINFO.eyetracker mode; 1 for eyelink; 2 for QY-1
+else
+    TRIALINFO.eyetracker = eyetracker;
 end
+
 if nargin <2
     task = 'fixation'; % fixation: one point fixation task without distractor;
                                   % pursuit: linear pursuit from left to right and top to down
-                                  % saccade: left / right saccade
                                   % scan: points from the mid cycle to the border
 end
 if nargin<3
@@ -20,13 +23,18 @@ end
 
 % fixaiton
 TRIALINFO.fixationDuration = 10; % second
-TRIALINFO.fixationSizeD = 3; % degree
+TRIALINFO.fixationSizeD = 1.5; % degree
+TRIALINFO.fixationCenterSizeD = 0.3; % pixel
 
 % pursuit
 TRIALINFO.LRDegree = 20; % degree
 TRIALINFO.TDDegree = 15; % degree
 TRIALINFO.pursuitDuration = 2; % second
 
+% scan
+TRIALINFO.scanXPointNum = 5;
+TRIALINFO.scanYPointNum = 3;
+TRIALINFO.scanFixDuration = 1.5; % second
 
 saveDir = fullfile(pwd,'data');
 mkdir(saveDir);
@@ -38,11 +46,11 @@ if isempty(subjectName)
 end
 subjectName = cell2mat(subjectName);
 
-if eyetracker == 0
+if TRIALINFO.eyetracker == 0
     resultFileName = ['DemoTestResult_' subjectName '_' datestr(now,'yymmddHHMM')];
-elseif eyetracker == 1
+elseif TRIALINFO.eyetracker == 1
     resultFileName = ['EyelinkTestResult_' subjectName '_' datestr(now,'yymmddHHMM')];
-elseif eyetracker == 2
+elseif TRIALINFO.eyetracker == 2
     resultFileName = ['QYITestResult_' subjectName '_' datestr(now,'yymmddHHMM')];
     QY.testtimes = 500;
     QY.dataFrequency = 200;
@@ -63,7 +71,7 @@ vKey = KbName('v');
 dKey = KbName('d');
 
 %% initial QY-I
-if eyetracker == 2
+if TRIALINFO.eyetracker == 2
     % udp
     u=udp('127.0.0.1',9999);
     fopen(u);
@@ -140,6 +148,8 @@ SCREEN.widthCM = width/10; % mm to cm
 SCREEN.heightCM = height/10; % mm to cm
 
 TRIALINFO.fixationSizeP = degree2pix(TRIALINFO.fixationSizeD/2);
+TRIALINFO.fixationCenterSizeP = degree2pix(TRIALINFO.fixationCenterSizeD/2);
+
 TRIALINFO.fixationPosition = [SCREEN.widthPix/2,SCREEN.heightPix/2];
 
 SCREEN.refreshRate = Screen('NominalFrameRate', SCREEN.screenId);
@@ -147,7 +157,7 @@ SCREEN.refreshRate = Screen('NominalFrameRate', SCREEN.screenId);
 Screen('FillRect', win ,blackBackground,[0 0 SCREEN.widthPix SCREEN.heightPix]);
 
 %% initial eyelink
-if eyetracker == 1
+if TRIALINFO.eyetracker == 1
     tempName = 'TEMP1'; % need temp name because Eyelink only know hows to save names with 8 chars or less. Will change name using matlab's moveFile later.
     dummymode=0;
     
@@ -226,18 +236,21 @@ if eyetracker == 1
 end
 
 %% tasks
+% fixation
 if contains(task,'fixation')
     Screen('Flip', win);
-    drawPoint(TRIALINFO.fixationPosition,TRIALINFO.fixationSizeP,[255 255 255],win);
+    drawPoint(TRIALINFO.fixationPosition,TRIALINFO.fixationSizeP, TRIALINFO.fixationCenterSizeP,win);
     Screen('Flip', win);
-    if eyetracker == 1
+    if TRIALINFO.eyetracker == 1
         Eyelink('message',['point in ' num2str(TRIALINFO.fixationPosition)]);
-    elseif eyetracker == 2
+    elseif TRIALINFO.eyetracker == 2
         fwrite(u,['mark: point in ' num2str(TRIALINFO.fixationPosition)]);
     end
     pause(TRIALINFO.fixationDuration);
     Screen('Flip', win);
 end
+
+% pursuit
 if contains(task,'pursuit')
     Screen('Flip', win);
 
@@ -256,11 +269,11 @@ if contains(task,'pursuit')
     % left-right pursuit
     for i = 1:frameNum
         position = lrPos(i,:);
-        drawPoint( position,TRIALINFO.fixationSizeP,[255 255 255],win);
+        drawPoint( position,TRIALINFO.fixationSizeP, TRIALINFO.fixationCenterSizeP,win);
         Screen('Flip', win);
-        if eyetracker == 1
+        if TRIALINFO.eyetracker == 1
             Eyelink('message',['point in ' num2str(position)]);
-        elseif eyetracker == 2
+        elseif TRIALINFO.eyetracker == 2
             fwrite(u,['mark: point in ' num2str(position)]);
         end
         if i == 1
@@ -272,11 +285,11 @@ if contains(task,'pursuit')
     % top-down pursuit
     for i = 1:frameNum
         position = tdPos(i,:);
-        drawPoint( position,TRIALINFO.fixationSizeP,[255 255 255],win);
+        drawPoint( position,TRIALINFO.fixationSizeP, TRIALINFO.fixationCenterSizeP,win);
         Screen('Flip', win);
-        if eyetracker == 1
+        if TRIALINFO.eyetracker == 1
             Eyelink('message',['point in ' num2str(position)]);
-        elseif eyetracker == 2
+        elseif TRIALINFO.eyetracker == 2
             fwrite(u,['mark: point in ' num2str(position)]);
         end
         if i == 1
@@ -286,9 +299,13 @@ if contains(task,'pursuit')
     pause(2);
 end
 
+% scan
+if contains(task,'scan')
+    ScanFunction(win);
+end
 
 %% terminate
-if eyetracker == 1 % terminate eyelink
+if TRIALINFO.eyetracker == 1 % terminate eyelink
     Eyelink('StopRecording');
     Eyelink('CloseFile');
     try
@@ -306,7 +323,7 @@ if eyetracker == 1 % terminate eyelink
     movefile(fullfile(saveDir,[tempName '.edf']),fullfile(saveDir,[fileName '.edf']));
     pause(2);
     Eyelink('ShutDown');
-elseif eyetracker == 2 % terminate QY-I
+elseif TRIALINFO.eyetracker == 2 % terminate QY-I
     fwrite(u,'mark:test finished');
     fwrite(u,'stopgetdata');
     pause(0.5);
@@ -346,7 +363,41 @@ elseif nargin == 2
 end
 end
 
-function drawPoint(position,sizeP,color,win)
-pointMetrix = [position(1)-sizeP/2 position(2)-sizeP/2 position(1)+sizeP/2 position(2)+sizeP/2];
-Screen('FillOval', win, color, pointMetrix);
+function drawPoint(position,sizeP,centerSizeP,win)
+color1 = [255 255 255];
+color2 = [255 0 0];
+pointMetrix1 = [position(1)-sizeP/2, position(2)-sizeP/2, position(1)+sizeP/2, position(2)+sizeP/2];
+pointMetrix2 = [position(1)-centerSizeP/2, position(2)-centerSizeP/2, position(1)+centerSizeP/2, position(2)+centerSizeP/2];
+Screen('FillOval', win, color1, pointMetrix1);
+Screen('FillOval', win, color2, pointMetrix2);
+end
+
+function ScanFunction(win)
+global TRIALINFO SCREEN
+
+Screen('Flip', win);
+
+% calculate for points
+xMetrix = linspace(0,SCREEN.widthPix,TRIALINFO.scanXPointNum+2);
+yMetrix = linspace(0,SCREEN.heightPix,TRIALINFO.scanYPointNum+2);
+if or(isempty(xMetrix),isempty(yMetrix))
+    warning('Invalid number for scanXPointNum or scanYPointNum, they must be integer numbers.')
+    return
+end
+
+[X,Y] = meshgrid(xMetrix(2:end-1),yMetrix(2:end-1));
+X = reshape(X, 1, numel(X));
+Y = reshape(Y, 1, numel(Y));
+
+for i = 1:length(X)
+    position = [X(i), Y(i)];
+    drawPoint( position,TRIALINFO.fixationSizeP, TRIALINFO.fixationCenterSizeP,win);
+    Screen('Flip', win);
+    if TRIALINFO.eyetracker == 1
+        Eyelink('message',['point in ' num2str(position)]);
+    elseif TRIALINFO.eyetracker == 2
+        fwrite(u,['mark: point in ' num2str(position)]);
+    end
+    pause(TRIALINFO.scanFixDuration)
+end
 end
