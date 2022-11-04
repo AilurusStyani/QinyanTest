@@ -15,6 +15,7 @@ if nargin <2
                                   % pursuit: linear pursuit from left to right and top to down
                                   % scan: points from the mid cycle to the border
 end
+
 if nargin<3
     SCREEN.distance = 60; % subject to screen distance, unit cm
 else
@@ -70,6 +71,8 @@ cKey = KbName('c');
 vKey = KbName('v');
 dKey = KbName('d');
 
+escFlag = false;
+
 %% initial QY-I
 if TRIALINFO.eyetracker == 2
     % udp
@@ -79,28 +82,76 @@ if TRIALINFO.eyetracker == 2
     pause(0.5)
     fwrite(u,'init'); % initial eye tracker
     pause(1);
+    caseId = [];
+    completedFlag = false;
     % calibration and validation
     while true
         [keyDown, ~, keyCode]=KbCheck;
         if keyCode(escape)
+            escFlag = true;
             break
-        elseif keyCode(spaceKey) % space to stop calibration
-            fwrite(u,'stopcal');
-        elseif keyCode(enter) % enter to stop validation
-            fwrite(u,'stopval');
+%         elseif keyCode(spaceKey) % space to stop calibration
+%             caseId = 'stopcal';
+%         elseif keyCode(enter) % enter to stop validation
+%             caseId = 'stopval';
         elseif keyCode(cKey) % c to start calibration
-            fwrite(u,'cal');
+            caseId = 'cal';
         elseif keyCode(vKey) % v to start validation
-            fwrite(u,'val');
+            caseId = 'val';
         elseif keyCode(dKey) % d to start drift correction
-            fwrite(u,'singlecal');
+            caseId = 'singlecal';
         end
-        pause(0.3);
+        
+        if keyDown
+            fwrite(u,caseId);
+        end
+        
+        if ~isempty(caseId)
+            returnStr = fread(u,10);
+            if isempty(returnStr)
+                while true
+                    returnStr = fread(u,10);
+                    [keyDown, ~, keyCode]=KbCheck;
+                    if keyCode(escape)
+                        escFlag = true;
+                        break
+                    end
+                    if ~isempty(returnStr)
+                        strTurn = char(returnStr');
+                        disp(strTurn);
+                        if contains(strTurn,'get validate values')
+                            completedFlag = true;
+                        end
+                        caseId = [];
+                        break
+                    end
+                end
+            else
+                strTurn = char(returnStr');
+                disp(strTurn);
+                if contains(strTurn,'get validate values')
+                    completedFlag = true;
+                end
+                caseId = [];
+            end
+        end
+        if escFlag || completedFlag
+            break
+        end
         while keyDown % check unless key release
             [keyDown, ~, ~]=KbCheck;
             pause(0.1);
         end
     end
+    
+    if escFlag
+        fwrite(u,'stop');
+        pause(0.5);
+        fwrite(u,'close');
+        fclose(u);
+        return
+    end
+    
     pause(1);
     
     disp('Is everything going smoothly? Or press ESC to terminate.')
@@ -301,7 +352,11 @@ end
 
 % scan
 if contains(task,'scan')
-    ScanFunction(win);
+    if TRIALINFO.eyetracker == 2
+        ScanFunction(win,u);
+    else
+        ScanFunction(win);
+    end
 end
 
 %% terminate
@@ -372,8 +427,10 @@ Screen('FillOval', win, color1, pointMetrix1);
 Screen('FillOval', win, color2, pointMetrix2);
 end
 
-function ScanFunction(win)
+function ScanFunction(win,u)
 global TRIALINFO SCREEN
+if nargin
+end
 
 Screen('Flip', win);
 
