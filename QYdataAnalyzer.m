@@ -33,7 +33,7 @@ for filei = 1:length(files)
     axes(subplot1(filei));
     hold on
     sampleDelay = cell2mat(frameD{filei,1}(:,1));
-    plot(sampleDelay);
+    plot(sampleDelay,'k','LineWidth',2);
     
     lengthNum = cellfun(@length,frameD{filei,1});
     lengthPos = cumsum(lengthNum);
@@ -47,8 +47,7 @@ for filei = 1:length(files)
 %     title(['End-to-End sample delay for QY-I in sample ' num2str(filei) ' (ms)']);
     xticklabels('auto');
     yticklabels('auto');
-    ylim([0 35]);
-    
+    ylim([0 35]);    
     
     axes(subplot1(filei+length(files)));
     hold on
@@ -60,6 +59,10 @@ for filei = 1:length(files)
     xticklabels('auto');
     yticklabels('auto');
 %     ylim([-1.2 1.2]);
+
+    axes(subplot1(filei));    
+    sampleDelay(sum(eyePos<0,2)>0,:) = nan; % eliminate blinks as nan
+    plot(sampleDelay,'y','LineWidth',1);
     
     axes(subplot1(filei+length(files)*2));
     hold on
@@ -79,6 +82,9 @@ for filei = 1:length(files)
     plot(rEye,'g');
     xticklabels('auto');
     yticklabels('auto');
+    textStr = {'Validation result: ', num2str(validResult{end,end})};
+    text(20,23,textStr,'FontSize',7);
+    ylim([0,20])
     
     axes(subplot1(filei+length(files)*3));
     hold on
@@ -92,6 +98,8 @@ for filei = 1:length(files)
     plot(rEye,'g');
     xticklabels('auto');
     yticklabels('auto');
+    textStr = {['Median for two-eye average: ' num2str(nanmedian(meanEye))], ['Median for left eye: ' num2str(nanmedian(lEye))], ['Median for right eye: ' num2str(nanmedian(rEye))]};
+    text(23,2.5,textStr,'FontSize',9);
     ylim([0 2]);
 end
 
