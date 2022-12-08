@@ -1,4 +1,3 @@
-
 function eyetrackerTest(eyetracker,task,distance)
 % essential environment: psychtoolbox-3
 delete TRIALINFO SCREEN
@@ -79,7 +78,7 @@ if TRIALINFO.eyetracker == 2
     % udp
     u=udp('127.0.0.1',9999);
     fopen(u);
-    fwrite(u,['savepath:' fullfile(saveDir,resultFileName) '.txt']); %set path
+    fwrite(u,['savepath:' fullfile(saveDir,[resultFileName '.txt']) ]); %set path
     pause(0.5)
     fwrite(u,'init'); % initial eye tracker
     pause(1);
