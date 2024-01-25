@@ -83,61 +83,41 @@ if TRIALINFO.eyetracker == 2
     fwrite(u,'init'); % initial eye tracker
     pause(1);
     caseId = [];
-    completedFlag = false;
+    readData = false;
+    escFlag = false;
     % calibration and validation
     while true
         [keyDown, ~, keyCode]=KbCheck;
         if keyCode(escape)
             escFlag = true;
             break
-%         elseif keyCode(spaceKey) % space to stop calibration
-%             caseId = 'stopcal';
-%         elseif keyCode(enter) % enter to stop validation
-%             caseId = 'stopval';
         elseif keyCode(cKey) % c to start calibration
             caseId = 'cal';
         elseif keyCode(vKey) % v to start validation
             caseId = 'val';
+            readData = true;
         elseif keyCode(dKey) % d to start drift correction
             caseId = 'singlecal';
+        elseif keyCode(spaceKey) % skip calibration and validation
+            break
         end
         
         if keyDown
             fwrite(u,caseId);
+            caseId = [];
         end
         
-        if ~isempty(caseId)
+        if readData
             returnStr = fread(u,10);
-            if isempty(returnStr)
-                while true
-                    returnStr = fread(u,10);
-                    [keyDown, ~, keyCode]=KbCheck;
-                    if keyCode(escape)
-                        escFlag = true;
-                        break
-                    end
-                    if ~isempty(returnStr)
-                        strTurn = char(returnStr');
-                        disp(strTurn);
-                        if contains(strTurn,'get validate values')
-                            completedFlag = true;
-                        end
-                        caseId = [];
-                        break
-                    end
-                end
-            else
+            if ~isempty(returnStr)
                 strTurn = char(returnStr');
                 disp(strTurn);
                 if contains(strTurn,'get validate values')
-                    completedFlag = true;
+                    break
                 end
-                caseId = [];
             end
         end
-        if escFlag || completedFlag
-            break
-        end
+
         while keyDown % check unless key release
             [keyDown, ~, ~]=KbCheck;
             pause(0.1);
@@ -170,6 +150,7 @@ if TRIALINFO.eyetracker == 2
     pause(0.2)
     fwrite(u,['mark:test start ' task]);
 end
+
 
 %% initial PTB
 Screen('Preference', 'SkipSyncTests', 2);
@@ -375,7 +356,7 @@ if TRIALINFO.eyetracker == 1 % terminate eyelink
     catch
         fprintf('Problem receiving data file ''%s''\n',resultFileName);
     end
-    movefile(fullfile(saveDir,[tempName '.edf']),fullfile(saveDir,[fileName '.edf']));
+    movefile(fullfile(saveDir,[tempName '.edf']),fullfile(saveDir,[resultFileName '.edf']));
     pause(2);
     Eyelink('ShutDown');
 elseif TRIALINFO.eyetracker == 2 % terminate QY-I

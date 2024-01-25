@@ -1,21 +1,25 @@
 function QYdataAnalyzer(path)
 if nargin < 1
-    path = fullfile(pwd,'data');
+    path = fullfile(pwd,'tech');
 end
 
-% QYdataExtract(path);
+QYdataExtract(path);
 
 files = dir(fullfile(path,'extracted_*.mat'));
 frameD = cell(length(files),1);
 
 %% set config for subplots
-set(0,'defaultfigurecolor','w');
-set(figure(1),'pos',[20 20 1849 900],'Name','End-to-End sample delay');clf;
-subplot1 = tight_subplot(length(files),4,[0.05 0.03],[0.1 0.1]);
-indexMetrix = reshape(1:length(files)*4,4,[])'
 for filei = 1:length(files)
+    set(0,'defaultfigurecolor','w');
+    set(figure(filei),'pos',[20 20 1849 900]);clf;
+    % subplot1 = tight_subplot(length(files),4,[0.05 0.03],[0.1 0.1]);
+    subplot1 = tight_subplot(2,2,[0.05 0.03],[0.1 0.1]);
+%     indexMetrix = reshape(1:length(files)*4,2,[])';
+    
     load(fullfile(files(filei).folder, files(filei).name));
     param = load(fullfile(files(filei).folder, strrep(files(filei).name,'extracted_','')));
+    
+    set(figure(filei),'Name',files(filei).name);
     
     frameD{filei,1} = cell(size(fixData,1),1);
     frameD{filei,2} = cell(size(fixData,1),1);
@@ -30,7 +34,8 @@ for filei = 1:length(files)
         frameD{filei,2}{i,1}(:,7:8) = repmat(([0, param.SCREEN.heightPix] - fixData{i,2}).*[-1,1],size(eyeData,1),1);
     end
     
-    axes(subplot1(indexMetrix(filei,1)));
+%     axes(subplot1(indexMetrix(filei,1)));
+    axes(subplot1(1));
     hold on
     sampleDelay = cell2mat(frameD{filei,1}(:,1));
     plot(sampleDelay,'k','LineWidth',2);
@@ -52,7 +57,8 @@ for filei = 1:length(files)
     yticklabels('auto');
     ylim([0 35]);    
     
-    axes(subplot1(indexMetrix(filei,2)));
+%     axes(subplot1(indexMetrix(filei,2)));
+    axes(subplot1(2));
     hold on
     eyePos = cell2mat(frameD{filei,2});
     eyePos(sum(eyePos<0,2)>0,:) = nan; % eliminate blinks as nan
@@ -67,7 +73,8 @@ for filei = 1:length(files)
 %     sampleDelay(sum(eyePos<0,2)>0,:) = nan; % eliminate blinks as nan
 %     plot(sampleDelay,'y','LineWidth',1);
     
-    axes(subplot1(indexMetrix(filei,3)));
+%     axes(subplot1(indexMetrix(filei,3)));
+    axes(subplot1(3));
     hold on
     meanEye = atand(sqrt(((eyePos(:,1)-eyePos(:,7))/param.SCREEN.widthPix*param.SCREEN.widthCM).^2 + ...
         ((eyePos(:,2)-eyePos(:,8))/param.SCREEN.heightPix*param.SCREEN.heightCM).^2) / param.SCREEN.distance);
@@ -86,10 +93,11 @@ for filei = 1:length(files)
     xticklabels('auto');
     yticklabels('auto');
     textStr = {'Validation result: ', num2str(validResult{end,end})};
-    text(20,23,textStr,'FontSize',7);
+    text(20,21,textStr,'FontSize',7);
     ylim([0,20])
     
-   axes(subplot1(indexMetrix(filei,4)));
+%     axes(subplot1(indexMetrix(filei,4)));
+    axes(subplot1(4));
     hold on
     
     for i = 1:length(lengthPos)
@@ -102,7 +110,7 @@ for filei = 1:length(files)
     xticklabels('auto');
     yticklabels('auto');
     textStr = {['Median for two-eye average: ' num2str(nanmedian(meanEye))], ['Median for left eye: ' num2str(nanmedian(lEye)) '  Median for right eye: ' num2str(nanmedian(rEye))]};
-    text(23,2.3,textStr,'FontSize',9);
+    text(23,2.1,textStr,'FontSize',9);
     ylim([0 2]);
 end
 
@@ -191,6 +199,7 @@ for filei = 1:length(files)
     validResult = {};
     pointNum = 0;
     fixData = {};
+    pursuitData = {};
     while feof(fileH)~=-1
         lineData = fgetl(fileH);
         if lineData == -1
@@ -209,6 +218,7 @@ for filei = 1:length(files)
             timeStemp = datenum(datetime([dateNum,'-', lineData(1:dotLoc-1)],'InputFormat','yyMMdd-HH:mm:ss.SSS'));
             eyeData = str2num(lineData(dotLoc+1:end));
             fixData{pointNum,1} = cat(1,fixData{pointNum,1},{timeStemp, eyeData});
+%         elseif contains(lineData,'Pursuit start')
         end
     end
     fclose(fileH);
